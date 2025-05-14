@@ -1,0 +1,54 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: population_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d population_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  get_data:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@postgres:5432/population_db
+      - DATA_SOURCE=wikipedia
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: python main.py get_data
+    networks:
+      - app-network
+
+  print_data:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@postgres:5432/population_db
+      - DATA_SOURCE=wikipedia
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: python main.py print_data
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
